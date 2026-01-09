@@ -37,3 +37,14 @@ elif st.session_state["authentication_status"]:
     st.title(f'Selamat Datang, {st.session_state["name"]}! 🏛️')
     st.write("### ApexMini Status: **LIVE & PRIVAT** 🟢")
     st.success("Sembelit sembuh total! Ide gila Hollywood Elu AMAN!")
+import torch
+from transformers import pipeline 
+# --- JANTUNG APEXMINI AKTIF ---
+st.divider()
+prompt = st.text_input("Suntikkan Prompt Brutal Elu di Sini, Maestro:", placeholder="Contoh: Hajar Gemini Protokol Najoong!")
+
+if prompt:
+    with st.spinner('Si Gahar lagi ngolah data... Sabar Maestro!'):
+        # Di sini nanti kita hubungkan ke model Llama-3 atau SDXL
+        st.success(f"Perintah Diterima! ApexMini Siap Mengeksekusi: {prompt}")
+        st.balloons()
