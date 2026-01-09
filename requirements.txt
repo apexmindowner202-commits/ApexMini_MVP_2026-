@@ -1,3 +1,13 @@
 streamlit
 streamlit-authenticator
 PyYAML
+streamlit
+streamlit-authenticator
+PyYAML
+torch
+transformers
+diffusers
+accelerate
+safetensors
+opencv-python
+pillow
