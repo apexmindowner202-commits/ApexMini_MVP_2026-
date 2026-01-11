@@ -19,8 +19,9 @@ if uploaded_file is not None:
     # 4. TOMBOL EKSEKUSI
     if st.button("EKSEKUSI SEKARANG! 🚀"):
         st.info("ApexMini sedang memproses tanpa sensor Filter...")
-        # Di sini kita bakal sambungin ke Model Raw dari GitHub/Cloud & Model Open-Source/Model-Stable Diffusion 3.5 (SD 3.5) (SD 3.5)
+        # Di sini kita bakal sambungin ke Model Raw dari GitHub/Cloud & Model (Open-Source/Model-Stable Diffusion 3.5 (SD 3.5) (SD 3.5)
         st.success("Target Terkunci! ApexMini sanggup menerima instruksi sesuai prompt")
+
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model_name = "mistralai/Mistral-7B-Instruct-v0.2" # Salah satu model open source populer
@@ -38,6 +39,7 @@ model_inputs = tokenizer([prompt], return_tensors='pt')
 generated_ids = model.generate(**model_inputs, max_new_tokens=100, num_return_sequences=1)
 decoded = tokenizer.batch_decode(generated_ids)
 print(decoded[0])
+
 import requests
 
 def chat_with_llama(prompt):
