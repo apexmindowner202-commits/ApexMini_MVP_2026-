@@ -22,43 +22,40 @@ if uploaded_file is not None:
         # Di sini kita bakal sambungin ke Model Raw dari GitHub/Cloud & Model (Open-Source/Model-Stable Diffusion 3.5 (SD 3.5) (SD 3.5)
         st.success("Target Terkunci! ApexMini sanggup menerima instruksi sesuai prompt")
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-model_name = "mistralai/Mistral-7B-Instruct-v0.2" # Salah satu model open source populer
-# Anda dapat menemukan lebih banyak model di Hugging Face model hubs.
-
-# Muat tokenizer dan model
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
-
-# Siapkan input prompt
-prompt = "Berikan saya tiga contoh skrip model open source gratis:"
-model_inputs = tokenizer([prompt], return_tensors='pt')
-
-# Hasilkan respons
-generated_ids = model.generate(**model_inputs, max_new_tokens=100, num_return_sequences=1)
-decoded = tokenizer.batch_decode(generated_ids)
-print(decoded[0])
-
+# --- 4. EKSEKUSI BACKEND APEXMINI (PHASE 2) ---
 import requests
+import io
 
-def chat_with_llama(prompt):
-    # Endpoint default Ollama API
-    url = "http://localhost:11434/api/generate"
-    payload = {
-        "model": "llama3", # Pastikan Anda sudah menjalankan 'ollama run llama3' di terminal
-        "prompt": prompt,
-        "stream": False
-    }
-    response = requests.post(url, json=payload)
-    if response.status_code == 200:
-        return response.json()['response']
-    else:
-        return "Error: Tidak dapat menghubungi server Ollama."
+def query(payload):
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
+    headers = {"Authorization": f"Bearer {st.secrets['HF_TOKEN']}"}
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.content
 
-# Gunakan fungsi chat
-response = chat_with_llama("Jelaskan perbedaan antara AI open source dan proprietary secara singkat.")
-print(response)
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    st.image(image, caption='Foto Terdeteksi oleh ApexMini', use_container_width=True)
+    
+    if st.button("EKSEKUSI SEKARANG! 🚀"):
+        with st.spinner("Membongkar Protokol Visual..."):
+            # PARAMETER BRUTAL
+            payload = {
+                "inputs": user_prompt,
+                "parameters": {
+                    "temperature": 0.1,
+                    "repetition_penalty": 1.05,
+                    "do_sample": True,
+                    "min_p": 0.15,
+                    "do_image_splitting": True
+                }
+            }
+            try:
+                image_bytes = query(payload)
+                result_image = Image.open(io.BytesIO(image_bytes))
+                st.image(result_image, caption="Hasil Visi Independent ApexMini", use_container_width=True)
+                st.success("Target Terkunci! ApexMini sanggup menerima instruksi sesuai prompt")
+            except Exception as e:
+                st.error(f"Gangguan Protokol: {e}")
 
 
 
