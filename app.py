@@ -14,7 +14,7 @@ import { OpenRouter } from '@openrouter/sdk';
 
 const openRouter = new OpenRouter({
 
-  apiKey: '<OPENROUTER_API_KEY>' // Suntikkan API Key 
+apiKey: 'sk-or-v1-KODE_ASLI_ELU', // Suntikkan API Key
 
 });
 
