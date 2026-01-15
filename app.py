@@ -1,3 +1,5 @@
+streamlit
+requests
 // ==========================================
 
 // APEXMINI_CORE: STERIL, BERBOBOT, UNLIMITED
@@ -14,7 +16,7 @@ import { OpenRouter } from '@openrouter/sdk';
 
 const openRouter = new OpenRouter({
 
-apiKey: 'sk-or-v1-KODE_ASLI_ELU', // Suntikkan API Key
+  apiKey: '<OPENROUTER_API_KEY>' // Suntikkan API Key 
 
 });
 
@@ -93,6 +95,14 @@ document.getElementById('send-btn').onclick = async () => {
   document.getElementById('chat-box').innerHTML += <p>${reply}</p>;
 
 };
+
+
+
+
+
+  
+
+    
 
 <div id="chat-box"></div>
 
