@@ -1,2 +1,2 @@
 requirements.txt 
-Open Source
+OpenSource
