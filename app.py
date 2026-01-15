@@ -1,46 +1,44 @@
+# NO 1-3: IMPORT (OTAK DASAR)
 import streamlit as st
 import requests
 import json
 
-# ==========================================
-# APEXMINI CORE ENGINE - OPENROUTER SECURITY
-# ==========================================
-
-def apex_core_connection(user_prompt):
-    """
-    Fungsi teknis untuk enkripsi dan koneksi 
-    langsung ke OpenRouter API Endpoint.
-    """
+# NO 5-20: FUNGSI KONEKSI OPENROUTER (JALUR BELAKANG PROFESIONAL)
+def call_apex_engine(user_input):
     endpoint = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://apexmini.ai", # Identitas Proyek
+        "HTTP-Referer": "https://apexmini.ai", 
         "X-Title": "ApexMini MVP 2026"
     }
-    
     payload = {
-        "model": "openrouter/auto", # Jalur Open Source Otomatis
-        "messages": [{"role": "user", "content": user_prompt}]
+        "model": "openrouter/auto", 
+        "messages": [{"role": "user", "content": user_input}]
     }
-    
-    # Eksekusi Koneksi Tanpa Ambigu
     response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
-    return response.json()
+    return response.json()['choices'][0]['message']['content']
 
+# NO 22-DST: TAMPILAN ANTARMUKA (USER VERSION)
+st.set_page_config(page_title="ApexMind Mini MVP", layout="centered")
+st.title("🤖 ApexMind Chatbot Engine")
 
+with st.expander("📸 Lampirkan Foto Proyek / Kode"):
+    uploaded_file = st.file_uploader("Pilih gambar", type=["jpg", "jpeg", "png"])
+    if uploaded_file:
+        st.image(uploaded_file, caption="Visual Terdeteksi", use_column_width=True)
 
+user_query = st.text_area("Masukan Instruksi User:", placeholder="Tuliskan di sini...")
 
-
-  
-
-    
-
-<div id="chat-box"></div>
-
-<div class="input-area">
-    <button id="upload-btn">+</button> <input type="text" id="user-prompt" placeholder=""> <button id="send-btn">Send</button>
-</div>
+if st.button("PROSES SEKARANG"):
+    if user_query:
+        with st.spinner("ApexMind sedang menganalisa..."):
+            # DISINI KITA PANGGIL FUNGSI NOMOR 5 TADI!
+            jawaban = call_apex_engine(user_query)
+            st.markdown("### 🏛️ Hasil Analisa")
+            st.write(jawaban)
+    else:
+        st.error("Peringatan: Input tidak boleh kosong!")
 
 
 
