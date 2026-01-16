@@ -1,100 +1,76 @@
 import streamlit as st
-
 import requests
-
 import json
 
+st.title("Chatbot OpenRouter via Requests (No OpenAI Lib)")
 
+try:
+    api_key = st.secrets["OPENROUTER_API_KEY"]
+    st.success("API key OK! ✅")
+except KeyError:
+    st.error("API key gak kebaca. Cek Secrets di Cloud.")
+    st.stop()
 
-# --- 1. MESIN UTAMA (OTAK LLAMA 3 FREE) ---
+# Init messages
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-def call_apex_engine(user_input):
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-    endpoint = "https://openrouter.ai/api/v1/chat/completions"
+if prompt := st.chat_input("Ketik..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    headers = {
+    with st.chat_message("assistant"):
+        placeholder = st.empty()
+        full = ""
 
-        "Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}",
+        # Payload OpenRouter
+        payload = {
+            "model": "meta-llama/llama-3.3-70b-instruct",  # atau model open-source lain
+            "messages": st.session_state.messages,
+            "stream": True,
+            "temperature": 0.7
+        }
 
-        "Content-Type": "application/json"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://your-app-url.com",  # optional, biar masuk leaderboard
+            "X-Title": "My Indie Chatbot"
+        }
 
-    }
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            stream=True
+        )
 
-    payload = {
-
-        "model": "meta-llama/llama-3-8b-instruct:free", 
-
-        "messages": [{"role": "user", "content": user_input}]
-
-    }
-
-    
-
-    try:
-
-        response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
-
-        res_json = response.json()
-
-        if 'choices' in res_json:
-
-            return res_json['choices'][0]['message']['content']
-
+        if response.status_code != 200:
+            st.error(f"Error {response.status_code}: {response.text}")
         else:
+            for line in response.iter_lines():
+                if line:
+                    decoded = line.decode('utf-8')
+                    if decoded.startswith("data: "):
+                        data = decoded[6:]
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            content = chunk['choices'][0]['delta'].get('content', '')
+                            if content:
+                                full += content
+                                placeholder.markdown(full + "▌")
+                        except:
+                            pass
+            placeholder.markdown(full)
 
-            return f"API Error: {res_json.get('error', 'Cek Koneksi atau Secrets!')}"
-
-    except Exception as e:
-
-        return f"System Error: {str(e)}"
-
-
-
-# --- 2. TAMPILAN ANTARMUKA (WAJAH APEXMINI) ---
-
-st.set_page_config(page_title="ApexMini MVP", page_icon="🦾")
-
-st.title("🦾 ApexMini MVP 2026")
-
-st.write("Sistem AI Sinkronisasi Magnetik")
-
-
-
-# Input Teks
-
-user_query = st.text_input("Input Pertanyaan:", "")
-
-
-
-# Tombol Eksekusi
-
-if st.button("Proses Ke Apex Engine"):
-
-    if user_query:
-
-        with st.spinner("Proses analisa..."):
-
-            jawaban = call_apex_engine(user_query)
-
-            st.success("Hasil Analisa:")
-
-            st.write(jawaban)
-
-    else:
-
-        st.warning("Silakan isi pertanyaan terlebih dahulu.")
-
-
-
-# Fitur Upload Foto
-
-uploaded_file = st.file_uploader("Upload Foto (Maksimal 2 Foto):", type=["jpg", "png", "jpeg"])
-
-if uploaded_file:
-
-    st.image(uploaded_file, caption="File Terunggah", use_container_width=True)
-
-    st.info("Analisa visual akan diaktifkan setelah sistem inti stabil.")
+    st.session_state.messages.append({"role": "assistant", "content": full})
 
 
 
