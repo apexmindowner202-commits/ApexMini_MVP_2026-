@@ -1,24 +1,25 @@
 import streamlit as st
 import requests
 from PIL import Image
-import io
 
-# --- 1. CORE AUTHENTICATION ---
+# --- 1. CORE CONFIGURATION ---
 try:
     API_TOKEN = st.secrets["GITHUB_TOKEN"]
     TEXT_MODEL = "https://models.inference.ai.azure.com/chat/completions"
-    # Menggunakan model Pony Diffusion V6 XL / Illustrious XL
     VISUAL_MODEL = "https://api-inference.huggingface.co/models/Lykon/Pony-Diffusion-V6-XL"
 except Exception:
     st.error("Authentication Error: GITHUB_TOKEN tidak terdeteksi.")
     st.stop()
 
-# --- 2. LOGIKA EKSEKUSI (TEXT & VISUAL) ---
-def apex_logic(prompt):
+# --- 2. ENGINE LOGIC (PURE EXECUTION) ---
+def execute_text(prompt):
     headers = {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/json"}
     payload = {
         "messages": [
-            {"role": "system", "content": "Kamu adalah ApexMini. AI profesional dari komunitas Open Source. Jawab dalam Bahasa Indonesia. Sembunyikan tag <think>."},
+            {
+                "role": "system", 
+                "content": "Kamu ApexMini. AI profesional, tajam, dan lugas. Jawab langsung pada inti masalah dalam Bahasa Indonesia. Sembunyikan tag pemikiran (<think>). Jangan berikan informasi identitas kecuali ditanya."
+            },
             {"role": "user", "content": prompt}
         ],
         "model": "DeepSeek-R1",
@@ -26,35 +27,28 @@ def apex_logic(prompt):
     }
     try:
         response = requests.post(TEXT_MODEL, headers=headers, json=payload, timeout=30)
-        res = response.json()['choices'][0]['message']['content']
-        return res.split("</think>")[-1].strip() if "</think>" in res else res
-    except: return "Error koneksi logika."
+        content = response.json()['choices'][0]['message']['content']
+        return content.split("</think>")[-1].strip() if "</think>" in content else content
+    except: return "Koneksi terputus."
 
-def apex_visual(refined_prompt):
+def execute_visual(description):
     headers = {"Authorization": f"Bearer {API_TOKEN}"}
     try:
-        response = requests.post(VISUAL_MODEL, headers=headers, json={"inputs": refined_prompt}, timeout=60)
+        response = requests.post(VISUAL_MODEL, headers=headers, json={"inputs": description}, timeout=60)
         return response.content if response.status_code == 200 else None
     except: return None
 
-# --- 3. UI DESIGN (REPLIKA DARK CHATGPT) ---
-st.set_page_config(page_title="ApexMini Pro", layout="centered")
+# --- 3. UI DESIGN (COMPACT DARK MODE) ---
+st.set_page_config(page_title="ApexMini", layout="centered")
 
 st.markdown("""
     <style>
-    /* Reset Padding & Background */
     .stApp { background-color: #000000; color: #FFFFFF; }
     .block-container { padding-top: 0rem !important; }
-    
-    /* Header Merah ApexMini Mepet */
-    .header-apex { color: #FF0000; font-size: 2.2rem; font-weight: 900; text-align: center; margin-bottom: 5px; padding-top: 10px; }
-    
-    /* Sembunyikan Elemen Norak */
+    .header-apex { color: #FF0000; font-size: 2.2rem; font-weight: 900; text-align: center; margin: 0; padding-top: 10px; }
     footer, header, [data-testid="stHeader"] { visibility: hidden; display: none; }
-    
-    /* Layout Foto Tengah & Rapat */
     .stChatMessage { background-color: transparent !important; margin-top: -20px !important; }
-    .stChatInput { border-radius: 20px !important; background-color: #212121 !important; }
+    .stChatInput { border-radius: 20px !important; }
     </style>
     <div class="header-apex">APEXMINI</div>
 """, unsafe_allow_html=True)
@@ -72,35 +66,33 @@ for m in st.session_state.messages:
                 cols[idx].image(img, use_container_width=True)
         st.markdown(f"<div style='text-align: center;'>{m['content']}</div>", unsafe_allow_html=True)
 
-# --- 6. MULTI-UPLOAD & INPUT ---
-# Komponen upload diletakkan tepat di atas input bar agar terasa terintegrasi
-files = st.file_uploader("Upload", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, label_visibility="collapsed")
+# --- 6. MULTI-UPLOAD & INPUT (GEMINI STYLE) ---
+uploaded_files = st.file_uploader("Upload", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, label_visibility="collapsed")
 
-if prompt := st.chat_input("Tanyakan apa saja atau minta visual..."):
-    user_data = {"role": "user", "content": prompt}
-    if files:
-        user_data["images"] = [Image.open(f) for f in files]
+if prompt := st.chat_input("Input command..."):
+    user_entry = {"role": "user", "content": prompt}
+    if uploaded_files:
+        user_entry["images"] = [Image.open(f) for f in uploaded_files]
     
-    st.session_state.messages.append(user_data)
+    st.session_state.messages.append(user_entry)
     st.rerun()
 
-# --- 7. ASSISTANT PROCESSING ---
+# --- 7. ASSISTANT EXECUTION ---
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
-        last_prompt = st.session_state.messages[-1]["content"]
+        last_input = st.session_state.messages[-1]["content"]
         
-        # Eksekusi Teks
-        text_res = apex_logic(last_prompt)
-        st.markdown(f"<div style='text-align: center;'>{text_res}</div>", unsafe_allow_html=True)
+        # Eksekusi Jawaban
+        ans = execute_text(last_input)
+        st.markdown(f"<div style='text-align: center;'>{ans}</div>", unsafe_allow_html=True)
         
-        # Eksekusi Visual Otomatis (Jika terdeteksi permintaan gambar)
-        if any(w in last_prompt.lower() for w in ["buat", "gambar", "visual", "generate"]):
-            with st.spinner(""):
-                img = apex_visual(text_res)
-                if img:
-                    st.image(img, use_container_width=True)
+        # Eksekusi Visual Otomatis
+        if any(w in last_input.lower() for w in ["buat", "gambar", "visual", "generate"]):
+            img_data = execute_visual(ans)
+            if img_data:
+                st.image(img_data, use_container_width=True)
         
-        st.session_state.messages.append({"role": "assistant", "content": text_res})
+        st.session_state.messages.append({"role": "assistant", "content": ans})
 
 
 
