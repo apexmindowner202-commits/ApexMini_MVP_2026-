@@ -1,131 +1,106 @@
-import streamlit as st
+
+ import streamlit as st
 import requests
-import json
 import base64
-from io import BytesIO
-from PIL import Image  # pip install pillow
+from PIL import Image
+import io
 
-st.title("Chatbot OpenRouter + Edit Foto Independen")
-
+# --- 1. CORE CONFIGURATION ---
 try:
-    api_key = st.secrets["OPENROUTER_API_KEY"]
-    st.success("API key OK! ✅")
-except KeyError:
-    st.error("API key gak kebaca. Cek Secrets.")
+    API_TOKEN = st.secrets["GITHUB_TOKEN"]
+    # Endpoint untuk Teks (DeepSeek R1)
+    TEXT_ENDPOINT = "https://models.inference.ai.azure.com/chat/completions"
+    # Endpoint untuk Visual (Hugging Face / Stable Diffusion)
+    # Sesuaikan dengan API yang Maestro gunakan untuk Illustrious/Pony
+    IMAGE_API_URL = "https://api-inference.huggingface.co/models/Lykon/Pony-Diffusion-V6-XL" 
+except Exception:
+    st.error("Authentication Error: API Tokens not configured in Secrets.")
     st.stop()
 
-# Sidebar untuk pilih model multimodal
-model = st.sidebar.selectbox("Pilih Model (untuk edit foto pakai multimodal)", [
-    "black-forest-labs/flux.2-pro", 
-    "black-forest-labs/flux.2-flex",
-    "google/gemini-3-pro-image-preview",  # atau yang tersedia di openrouter.ai/models
-    "meta-llama/llama-3.3-70b-instruct"   # fallback text-only
-])
+# --- 2. ENGINE LOGIC ---
 
-# Init messages
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Fungsi Logika Teks & Matematika
+def execute_logic(prompt):
+    headers = {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/json"}
+    payload = {
+        "messages": [
+            {"role": "system", "content": "You are ApexMini. Specialist in math and visual prompting. Identity: Open Source Community."},
+            {"role": "user", "content": prompt}
+        ],
+        "model": "DeepSeek-R1",
+        "temperature": 0.6
+    }
+    try:
+        response = requests.post(TEXT_ENDPOINT, headers=headers, json=payload, timeout=30)
+        return response.json()['choices'][0]['message']['content']
+    except: return "System Error on Logic Engine."
 
-# Tampilkan history (text + gambar kalau ada)
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        if isinstance(msg["content"], str):
-            st.markdown(msg["content"])
-        elif isinstance(msg["content"], list):  # untuk multimodal
-            for part in msg["content"]:
-                if part["type"] == "text":
-                    st.markdown(part["text"])
-                elif part["type"] == "image_url":
-                    st.image(part["image_url"]["url"])
+# Fungsi Eksekusi Visual (Multi-Image Support & Generation)
+def generate_visual(prompt):
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    try:
+        response = requests.post(IMAGE_API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
+        return response.content
+    except: return None
 
-# Upload foto untuk edit
-uploaded_file = st.file_uploader("Upload foto untuk di-edit (opsional)", type=["jpg", "png", "jpeg"])
-image_base64 = None
-if uploaded_file:
-    img = Image.open(uploaded_file)
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-    st.image(img, caption="Foto yang diupload", width=300)
+# --- 3. PROFESSIONAL UI DESIGN ---
+st.set_page_config(page_title="ApexMini Pro", layout="centered")
+st.markdown("""
+    <style>
+    .stApp { background-color: #000000; color: #FFFFFF; }
+    .header-apexmini { color: #FF0000; font-size: 2.5rem; font-weight: 800; text-align: center; padding: 40px 0; letter-spacing: 2px; }
+    footer, header {visibility: hidden;}
+    .stChatMessage { background-color: #0c0c0c; border: 1px solid #1a1a1a; border-radius: 15px; }
+    </style>
+    <div class="header-apexmini">APEXMINI</div>
+""", unsafe_allow_html=True)
 
-if prompt := st.chat_input("Ketik prompt (misal: 'edit foto ini jadi hitam putih' atau chat biasa)"):
-    # Bangun messages baru
-    user_content = [{"type": "text", "text": prompt}]
-    if image_base64:
-        user_content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{image_base64}"}
-        })
+# --- 4. CHAT & VISUAL INTERFACE ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# Display history
+for chat in st.session_state.chat_history:
+    with st.chat_message(chat["role"]):
+        st.markdown(chat["content"])
+        if "images" in chat:
+            cols = st.columns(len(chat["images"]))
+            for idx, img in enumerate(chat["images"]):
+                cols[idx].image(img, use_container_width=True)
+
+# Input Area (Teks & Multi-Photo)
+with st.container():
+    uploaded_files = st.file_uploader("Upload reference photos...", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, label_visibility="collapsed")
+    prompt = st.chat_input("Enter your prompt for visual or math formulation...")
+
+if prompt:
+    current_chat = {"role": "user", "content": prompt}
+    if uploaded_files:
+        current_chat["images"] = [Image.open(f) for f in uploaded_files]
     
-    st.session_state.messages.append({"role": "user", "content": user_content})
+    st.session_state.chat_history.append(current_chat)
     
+    # Jalankan tampilan user
     with st.chat_message("user"):
         st.markdown(prompt)
-        if image_base64:
-            st.image(uploaded_file, width=200)
+        if uploaded_files:
+            cols = st.columns(len(uploaded_files))
+            for i, f in enumerate(uploaded_files): cols[i].image(f, use_container_width=True)
 
+    # Jalankan Respons Assistant
     with st.chat_message("assistant"):
-        placeholder = st.empty()
-        full_text = ""
-        generated_images = []
+        # 1. Dapatkan Perumusan Teks/Logika
+        response_text = execute_logic(prompt)
+        st.markdown(response_text)
+        
+        # 2. Jika prompt mengandung perintah visual, hasilkan gambar
+        if any(word in prompt.lower() for word in ["buat", "gambar", "visual", "generate", "design"]):
+            with st.spinner("Generating high-fidelity visual..."):
+                img_bytes = generate_visual(response_text) # Gunakan CoT dari R1 untuk prompt visual
+                if img_bytes:
+                    st.image(img_bytes, caption="ApexMini Visual Output", use_container_width=True)
 
-        payload = {
-            "model": model,
-            "messages": st.session_state.messages,
-            "stream": True,
-            "temperature": 0.7
-        }
-
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://your-streamlit-app.com",
-            "X-Title": "Foto Edit Chatbot"
-        }
-
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            stream=True
-        )
-
-        if response.status_code != 200:
-            st.error(f"Error {response.status_code}: {response.text}")
-        else:
-            for line in response.iter_lines():
-                if line:
-                    decoded = line.decode('utf-8')
-                    if decoded.startswith("data: "):
-                        data = decoded[6:]
-                        if data == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(data)
-                            delta = chunk['choices'][0]['delta']
-                            # Text content
-                            if 'content' in delta:
-                                content = delta['content']
-                                full_text += content
-                                placeholder.markdown(full_text + "▌")
-                            # Image generation (kalau model support)
-                            if 'images' in delta and delta['images']:
-                                for img_data in delta['images']:
-                                    if 'url' in img_data:
-                                        generated_images.append(img_data['url'])
-                                        st.image(img_data['url'], caption="Hasil edit/generate")
-                        except:
-                            pass
-            placeholder.markdown(full_text)
-            # Simpan images kalau ada
-            if generated_images:
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": full_text,
-                    "images": generated_images  # optional simpan
-                })
-            else:
-                st.session_state.messages.append({"role": "assistant", "content": full_text})
+        st.session_state.chat_history.append({"role": "assistant", "content": response_text})       
 
 
 
