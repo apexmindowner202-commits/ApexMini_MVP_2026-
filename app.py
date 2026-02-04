@@ -94,5 +94,33 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
         
         st.session_state.messages.append({"role": "assistant", "content": ans})
 
+import streamlit as st
+import matplotlib.pyplot as plt
+import numpy as np
 
+# Generate data
+x = np.linspace(0, 10, 100)
+y = np.sin(x)
+
+# Create plot
+fig, ax = plt.subplots()
+ax.plot(x, y)
+ax.set_title("Contoh Visualisasi Sinus")
+ax.set_xlabel("X")
+ax.set_ylabel("sin(X)")
+
+# Tampilkan plot di Streamlit
+st.pyplot(fig)
+
+# Download sebagai PNG
+from io import BytesIO
+buf = BytesIO()
+fig.savefig(buf, format="png")
+buf.seek(0)
+st.download_button(
+    label="Download Gambar",
+    data=buf,
+    file_name="plot_sinus.png",
+    mime="image/png"
+    )
 
