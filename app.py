@@ -1,135 +1,137 @@
 import streamlit as st
 import requests
-from PIL import Image
-import io
-import time
 
-# --- 1. CORE AUTH (SISTEM TOLARANSI TINGGI) ---
-try:
-    API_TOKEN = st.secrets["GITHUB_TOKEN"]
-    TEXT_MODEL = "https://models.inference.ai.azure.com/chat/completions"
-    IMAGE_MODEL = "https://api-inference.huggingface.co/models/Lykon/Pony-Diffusion-V6-XL"
-except Exception:
-    st.error("TOKEN GHOIB! PASANG DI SECRETS!")
-    st.stop()
+# --- STANDAR UI INTERNASIONAL (APEXMINI) ---
+st.set_page_config(
+    page_title="ApexMini - Project Intelligence",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
-# --- 2. ENGINE LOGIC: DEEPSEEK-R1 (COT) DENGAN SISTEM ANTI-BLOCK ---
-def get_apex_logic(u_input, has_img=False):
-    headers = {"Authorization": f"Bearer {API_TOKEN.strip()}", "Content-Type": "application/json"}
-    
-    # Perintah Tajam & Fokus Proyek
-    sys_msg = "You are ApexMini. Project focused. Sharp instinct. Strictly use Chain-of-Thought reasoning. Indonesian."
-    if has_img:
-        sys_msg += " Analyze the attached images for the project formulation."
-
-    payload = {
-        "messages": [{"role": "system", "content": sys_msg}, {"role": "user", "content": u_input}],
-        "model": "DeepSeek-R1", "temperature": 0.6
-    }
-    
-    # Teknik Brutal: Retry sampai 5 kali untuk tembus Rate Limit
-    for attempt in range(5):
-        try:
-            res = requests.post(TEXT_MODEL, headers=headers, json=payload, timeout=60)
-            if res.status_code == 200:
-                full = res.json()['choices'][0]['message']['content']
-                if "</think>" in full:
-                    p = full.split("</think>")
-                    return p[0].replace("<think>", "").strip(), p[1].strip()
-                return None, full
-            elif res.status_code == 429:
-                time.sleep(attempt + 1) # Jeda makin lama tiap gagal
-                continue
-        except: continue
-    return None, "Sistem GitHub Limit (429). Tunggu 10 detik lalu kirim ulang."
-
-def generate_apex_visual(p):
-    headers = {"Authorization": f"Bearer {API_TOKEN.strip()}"}
-    try:
-        # Tambahkan quality tag agar tidak berantakan
-        res = requests.post(IMAGE_MODEL, headers=headers, 
-                            json={"inputs": f"score_9, score_8_up, masterpiece, detailed, {p}"}, timeout=120)
-        return res.content if res.status_code == 200 else None
-    except: return None
-
-# --- 3. UI STYLE: BLACK & RED (RAMPING & STABIL) ---
-st.set_page_config(page_title="ApexMini", layout="centered", initial_sidebar_state="collapsed")
-
+# CSS Profesional: Lebar Pas, Send Button Kanan, Clean Interface
 st.markdown("""
     <style>
-    .stApp { background-color: #000000; color: #FFFFFF; }
-    [data-testid="stSidebar"] { background-color: #050505 !important; }
-    div[data-testid="stChatInput"] {
-        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-        width: 90% !important; max-width: 500px !important;
-        background: #111 !important; border: 1px solid #333 !important;
-        border-radius: 20px !important;
+    .block-container {max-width: 850px; padding-top: 2rem;}
+    .stTextInput input {border-radius: 10px; border: 1px solid #d1d1e9;}
+    section[data-testid="stSidebar"] {width: 300px !important;}
+    .stChatFloatingInputContainer {background-color: transparent;}
+    /* Warna Hijau ChatGPT untuk Tombol Kirim */
+    div.stButton > button {
+        background-color: #10a37f;
+        color: white;
+        border-radius: 5px;
+        width: 100%;
+        font-weight: bold;
     }
-    footer, header, [data-testid="stHeader"] { visibility: hidden; }
-    .hero { text-align: center; padding: 20px 0; border-bottom: 2px solid #FF0000; margin-bottom: 30px; }
-    .hero h1 { color: #FF0000; font-size: 2.5rem; font-weight: 900; letter-spacing: 5px; margin: 0; }
-    .cot-box { background: #0A0A0A; border-left: 3px solid #FF0000; padding: 15px; color: #888; font-size: 0.85rem; border-radius: 5px; }
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# --- 4. SESSION & MEDIA CONTROL ---
-if "messages" not in st.session_state: st.session_state.messages = []
-if "up_key" not in st.session_state: st.session_state.up_key = 0
+# --- HEADER PROYEK ---
+st.title("ApexMini")
+st.caption("Advanced CoT Reasoning | DeepSeek-R1 | Pony V6 XL Logic")
 
-with st.sidebar:
-    st.markdown("### 📎 PROJECT MEDIA")
-    files = st.file_uploader("Upload Foto Proyek", type=['png','jpg','jpeg'], 
-                             accept_multiple_files=True, key=f"f_{st.session_state.up_key}")
-    if files:
-        if st.button("🗑️ Reset Media"):
-            st.session_state.up_key += 1; st.rerun()
+# --- KONEKSI TOKEN GITHUB (POWERED BY GITHUB MODELS) ---
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 
-# --- 5. CHAT DISPLAY (SISTEM LINEAR - ANTI CRASH) ---
-st.markdown('<div class="hero"><h1>APEXMINI</h1></div>', unsafe_allow_html=True)
+# --- FITUR MULTI-UPLOAD FOTO (ANTI-KORUPSI) ---
+# Ditempatkan di area utama agar tidak terpotong sistem Streamlit
+with st.expander("📂 Lampirkan Aset/Foto Proyek", expanded=True):
+    uploaded_files = st.file_uploader(
+        "Upload beberapa foto untuk analisis visual", 
+        accept_multiple_files=True, 
+        type=['png', 'jpg', 'jpeg'],
+        key="apex_uploader"
+    )
 
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        # Tampilkan foto user secara vertikal (Anti Column-Error)
-        if "imgs" in m:
-            for img in m["imgs"]: st.image(img, width=280)
-        
-        # Tampilkan CoT DeepSeek-R1
-        if m.get("cot"):
-            with st.expander("Proses Berpikir (CoT)", expanded=False):
-                st.markdown(f'<div class="cot-box">{m["cot"]}</div>', unsafe_allow_html=True)
-        
-        st.markdown(m["content"])
-        
-        # Tampilkan Visual Proyek
-        if m.get("v_res"):
-            st.image(m["v_res"], caption="Hasil Visual Proyek", use_container_width=True)
-
-# --- 6. ACTION (FULL POWER) ---
-if prompt := st.chat_input("Tanya ApexMini..."):
-    has_img = True if files else False
-    # Pre-process image to avoid rerun issues
-    curr_imgs = [Image.open(f) for f in files] if files else []
+# --- ENGINE PENALARAN (DEEPSEEK R1 - CoT) ---
+def get_apexmini_logic(user_input):
+    if not GITHUB_TOKEN:
+        st.error("Sistem Error: GITHUB_TOKEN tidak terdeteksi di Secrets.")
+        return None
     
-    st.session_state.messages.append({"role": "user", "content": prompt, "imgs": curr_imgs})
+    url = "https://models.inference.ai.azure.com/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Content-Type": "application/json"
+    }
     
+    payload = {
+        "model": "DeepSeek-R1",
+        "messages": [
+            {
+                "role": "system", 
+                "content": (
+                    "You are ApexMini. Execute advanced Chain-of-Thought (CoT) reasoning. "
+                    "Focus on complex mathematical formulations and high-precision project analysis. "
+                    "Maintain professional, sharp, and concise output. No conversational filler. "
+                    "Address the user's intent directly with expert-level technical accuracy."
+                )
+            },
+            {"role": "user", "content": user_input}
+        ],
+        "temperature": 0.6
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()['choices'][0]['message']['content']
+    except Exception as e:
+        return f"API Error: {str(e)}"
+
+# --- ENGINE VISUAL (PONY V6 XL LOGIC VIA SDXL) ---
+def generate_pony_visual(refined_prompt):
+    url = "https://models.inference.ai.azure.com/images/generations"
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    # Pony V6 XL Style Prompting: Garis Keras & Fotorealistik
+    enhanced_prompt = f"score_9, score_8_up, masterpiece, photorealistic, 8k resolution, highly detailed, {refined_prompt}"
+    
+    payload = {
+        "model": "stability-ai/sdxl",
+        "prompt": enhanced_prompt,
+        "n": 1,
+        "size": "1024x1024"
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()['data'][0]['url']
+    except Exception as e:
+        return None
+
+# --- MANAJEMEN CHAT ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# --- INPUT & EKSEKUSI ---
+if prompt := st.chat_input("Input rumusan proyek..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
     with st.chat_message("assistant"):
-        with st.spinner("ApexMini sedang merumuskan..."):
-            cot, ans = get_apex_logic(prompt, has_img=has_img)
-            
-            if cot:
-                with st.expander("Thinking...", expanded=True):
-                    st.markdown(f'<div class="cot-box">{cot}</div>', unsafe_allow_html=True)
-            st.markdown(ans)
-        
-        v_data = None
-        if any(x in prompt.lower() for x in ["buat", "gambar", "visual", "render"]):
-            with st.status("🚀 Merender Visual Proyek...", expanded=True) as status:
-                v_data = generate_apex_visual(ans)
-                if v_data:
-                    st.image(v_data, use_container_width=True)
-                    status.update(label="Visual Selesai!", state="complete")
-                else: status.update(label="Gagal Render", state="error")
-        
-        st.session_state.messages.append({"role": "assistant", "content": ans, "cot": cot, "v_res": v_data})
-        st.session_state.up_key += 1 # Auto reset uploader
-    st.rerun()
+        # Tahap 1: Penalaran Mendalam (CoT)
+        with st.spinner("ApexMini Analyzing..."):
+            reasoning_output = get_apexmini_logic(prompt)
+            if reasoning_output:
+                st.markdown(reasoning_output)
+                st.session_state.messages.append({"role": "assistant", "content": reasoning_output})
+                
+                # Tahap 2: Eksekusi Visual (Jika Relevan)
+                visual_triggers = ['visual', 'gambar', 'render', 'foto', 'desain']
+                if any(x in prompt.lower() for x in visual_triggers):
+                    with st.spinner("Generating Pony V6 XL Visual..."):
+                        image_url = generate_pony_visual(reasoning_output[:400])
+                        if image_url:
+                            st.image(image_url, caption="ApexMini Visual Output | Photorealistic Engine")
