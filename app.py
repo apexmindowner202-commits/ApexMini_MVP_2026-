@@ -1,62 +1,55 @@
 import streamlit as st
 import requests
+from PIL import Image
+import io
 
-# 1. IDENTITAS APEXMINI (WAJIB MERAH & TEGAS)
+# IDENTITAS VISUAL (WAJIB MERAH)
 st.set_page_config(page_title="ApexMini", layout="wide")
-st.markdown("""
-    <style>
-    .stApp { background-color: #050505; color: #ffffff; }
-    .apex-title { color: #FF0000; font-size: 40px; font-weight: 900; letter-spacing: 2px; }
-    </style>
-""", unsafe_allow_html=True)
+st.markdown("<style>.stMarkdown h1 {color: #FF0000 !important; font-weight: 900;}</style>", unsafe_allow_html=True)
+st.title("ApexMini")
 
-st.markdown('<h1 class="apex-title">ApexMini</h1>', unsafe_allow_html=True)
-
-# 2. FITUR UPLOAD FOTO (YANG TADI HILANG)
+# HANDLING ASSETS TANPA ERROR
 with st.sidebar:
-    st.markdown("<h2 style='color:white;'>📂 PROJECT ASSETS</h2>", unsafe_allow_html=True)
-    uploaded_files = st.file_uploader("Lampirkan foto proyek...", accept_multiple_files=True)
+    st.header("ASET PROYEK")
+    uploaded_files = st.file_uploader("Lampirkan foto...", accept_multiple_files=True)
     if uploaded_files:
         for file in uploaded_files:
-            st.image(file, caption=file.name, width=200)
+            try:
+                # Memastikan file dibaca dengan benar sebagai gambar
+                img = Image.open(file)
+                st.image(img, caption=file.name, use_container_width=True)
+            except Exception:
+                st.error(f"Format file {file.name} tidak didukung.")
 
-# 3. KONEKSI KE DEEPSEEK-R1 & PONY V6 XL
-TOKEN = st.secrets["GITHUB_TOKEN"]
+# LOGIKA EKSEKUSI
+TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 
-def get_apex_response(prompt):
+def process(msg):
     url = "https://models.inference.ai.azure.com/chat/completions"
     headers = {"Authorization": f"Bearer {TOKEN}"}
-    
-    # Identitas Komunitas Open Source (Sesuai Pesanan Maestro)
     payload = {
         "messages": [
-            {"role": "system", "content": "Identity: Open Source Community. Focus: High-level coding & visual logic. No reasoning output."},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": "Identity: Open Source Community. Fast, Sharp, No Small Talk. Focus on Code and Visual Prompts."},
+            {"role": "user", "content": msg}
         ],
-        "model": "deepseek-r1" # Logika R1 CoT
+        "model": "deepseek-r1"
     }
     try:
-        res = requests.post(url, headers=headers, json=payload, timeout=60)
-        return res.json()['choices'][0]['message']['content'].split("</think>")[-1].strip()
+        r = requests.post(url, headers=headers, json=payload, timeout=60)
+        return r.json()['choices'][0]['message']['content'].split("</think>")[-1].strip()
     except:
-        return "⚠️ Sistem Sembelit/Limit. Tunggu 10 detik."
+        return "System error."
 
-# 4. CHAT INTERFACE (SESUAI VIDEO VS CODE)
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+# CHAT INTERFACE
+if "messages" not in st.session_state: st.session_state.messages = []
+for m in st.session_state.messages:
+    with st.chat_message(m["role"]): st.write(m["content"])
 
-for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
-
-user_input = st.chat_input("Ketik rumusan atau instruksi visual...")
-
-if user_input:
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.write(user_input)
-    
+query = st.chat_input("Ketik instruksi...")
+if query:
+    st.session_state.messages.append({"role": "user", "content": query})
+    with st.chat_message("user"): st.write(query)
     with st.chat_message("assistant"):
-        response = get_apex_response(user_input)
-        st.write(response)
-        st.session_state.chat_history.append({"role": "assistant", "content": response})
+        resp = process(query)
+        st.write(resp)
+        st.session_state.messages.append({"role": "assistant", "content": resp})
